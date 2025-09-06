@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>IOPS on glennaugustus.com</title>
+    <link>https://glennaugustus.com/tags/iops/</link>
+    <description>Recent content in IOPS on glennaugustus.com</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 21 Sep 2015 13:48:40 +0000</lastBuildDate>
+    <atom:link href="https://glennaugustus.com/tags/iops/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Storage Basics Part 4 - or The Dead Parity Sketch</title>
+      <link>https://glennaugustus.com/post/storage-basics-part-4-or-the-dead-parity-sketch/</link>
+      <pubDate>Mon, 21 Sep 2015 13:48:40 +0000</pubDate>
+      <guid>https://glennaugustus.com/post/storage-basics-part-4-or-the-dead-parity-sketch/</guid>
+      <description>&lt;p&gt;In parts &lt;a href=&#34;https://glennaugustus.com/post/storage-basics-part-1-or-from-disc-to-discovery/&#34;&gt;one &lt;/a&gt;&lt;a href=&#34;https://glennaugustus.com/post/storage-basics-part-2-or-a-chip-off-the-old-block/&#34;&gt;through &lt;/a&gt;&lt;a href=&#34;https://glennaugustus.com/post/storage-basics-part-3-or-time-waits-for-no-wan/&#34;&gt;three &lt;/a&gt;of this series on the basics of storage we have covered off some of the fundamentals of the subject including why storage is important and made some headway into the terminology, in this post we look at some of the acronyms and initialisms.&lt;/p&gt;&#xA;&lt;h2 id=&#34;raid&#34;&gt;RAID&lt;/h2&gt;&#xA;&lt;p&gt;RAID, has evolved its meaning over time from Redundant Array of Inexpensive Disks to Redundant Array of Independent Disks, but its acceptable either way. RAID takes a few forms (known as levels) with the intention to provide virtualization of the underlying storage hardware to increase performance and protection for the data residing on a presentable logical storage device. The levels include&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

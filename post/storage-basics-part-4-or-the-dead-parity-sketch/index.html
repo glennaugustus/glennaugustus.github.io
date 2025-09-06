@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    
+    <meta property="og:site_name" content="glennaugustus.com">
+    <meta property="og:type" content="article">
+
+    
+    <meta property="og:image" content="/images/lwec9mlwec9mlwec.jpeg">
+    <meta property="twitter:image" content="/images/lwec9mlwec9mlwec.jpeg" />
+    
+
+    
+    <meta name="title" content="Storage Basics Part 4 - or The Dead Parity Sketch" />
+    <meta property="og:title" content="Storage Basics Part 4 - or The Dead Parity Sketch" />
+    <meta property="twitter:title" content="Storage Basics Part 4 - or The Dead Parity Sketch" />
+    
+
+    
+    <meta name="description" content="Part of the Storage Basics series, this post unpacks RAID, IOPS, SSDs, and storage interfaces—making sense of acronyms and performance metrics for anyone new to storage technology.">
+    <meta property="og:description" content="Part of the Storage Basics series, this post unpacks RAID, IOPS, SSDs, and storage interfaces—making sense of acronyms and performance metrics for anyone new to storage technology." />
+    <meta property="twitter:description" content="Part of the Storage Basics series, this post unpacks RAID, IOPS, SSDs, and storage interfaces—making sense of acronyms and performance metrics for anyone new to storage technology." />
+    
+
+    
+    <meta property="twitter:card" content="summary" />
+    
+    
+
+    <meta name="keyword"  content="glennaugustus, glennaugustus blog, compute, technology, AI, artificial intelligence, architecture, UK, united kingdom">
+<link rel="icon" type="image/png" href="/img/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/img//favicon.svg" />
+<link rel="shortcut icon" href="/img/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png" />
+<link rel="manifest" href="/img/site.webmanifest" />
+
+    <title>Storage Basics Part 4 - or The Dead Parity Sketch | Glenn Augustus Blog</title>
+
+    <link rel="canonical" href="/post/storage-basics-part-4-or-the-dead-parity-sketch/">
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+
+    
+    <link rel="stylesheet" href="/css/hugo-theme-cleanwhite.min.css">
+
+    
+    <link rel="stylesheet" href="/css/zanshang.css">
+
+    
+    <link rel="stylesheet" href="/css/font-awesome.all.min.css">
+
+    
+    <link rel="stylesheet" href="https://glennaugustus.com/css/gablog.css">
+
+    
+    <script src="/js/jquery.min.js"></script>
+
+    
+    <script src="/js/bootstrap.min.js"></script>
+
+    
+    <script src="/js/hux-blog.min.js"></script>
+
+    
+    <script src="/js/lazysizes.min.js"></script>
+
+    
+    
+
+</head>
+
+
+
+
+
+
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+
+    <div class="container-fluid">
+        
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">glennaugustus.com</a>
+        </div>
+
+        
+        
+        <div id="huxblog_navbar">
+            <div class="navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="/">All Posts</a>
+                    </li>
+                    
+                        
+                    
+                    
+		    
+                        <li><a href="/archive//">ARCHIVE</a></li>
+                    
+                        <li><a href="/about//">ABOUT</a></li>
+                    
+		            <li>
+                        <a href="/search"><i class="fa fa-search"></i></a>
+		           </li>
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+</nav>
+<script>
+    
+    
+    
+    var $body   = document.body;
+    var $toggle = document.querySelector('.navbar-toggle');
+    var $navbar = document.querySelector('#huxblog_navbar');
+    var $collapse = document.querySelector('.navbar-collapse');
+
+    $toggle.addEventListener('click', handleMagic)
+    function handleMagic(e){
+        if ($navbar.className.indexOf('in') > 0) {
+        
+            $navbar.className = " ";
+            
+            setTimeout(function(){
+                
+                if($navbar.className.indexOf('in') < 0) {
+                    $collapse.style.height = "0px"
+                }
+            },400)
+        }else{
+        
+            $collapse.style.height = "auto"
+            $navbar.className += " in";
+        }
+    }
+</script>
+
+
+
+
+<style type="text/css">
+    header.intro-header {
+        background-image: url('/images/lwec9mlwec9mlwec.jpeg');
+        text-align: center;
+    }
+</style>
+
+<header class="intro-header" >
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/storage" title="Storage">
+                            Storage
+                        </a>
+                        
+                        <a class="tag" href="/tags/storage-basics" title="Storage Basics">
+                            Storage Basics
+                        </a>
+                        
+                        <a class="tag" href="/tags/raid" title="RAID">
+                            RAID
+                        </a>
+                        
+                        <a class="tag" href="/tags/iops" title="IOPS">
+                            IOPS
+                        </a>
+                        
+                        <a class="tag" href="/tags/ssd" title="SSD">
+                            SSD
+                        </a>
+                        
+                        <a class="tag" href="/tags/interfaces" title="Interfaces">
+                            Interfaces
+                        </a>
+                        
+                    </div>
+                    <h1>Storage Basics Part 4 - or The Dead Parity Sketch</h1>
+                    <h2 class="subheading"></h2>
+                    <span class="meta">
+                        
+                            Posted by 
+                            
+                                Glenn Augustus
+                             
+                            on 
+                            Monday, September 21, 2015
+                            
+                            
+                            
+                            
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+
+
+<article>
+    <div class="container">
+        <div class="row">
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                post-container">
+
+                
+                <p>In parts <a href="/post/storage-basics-part-1-or-from-disc-to-discovery/">one </a><a href="/post/storage-basics-part-2-or-a-chip-off-the-old-block/">through </a><a href="/post/storage-basics-part-3-or-time-waits-for-no-wan/">three </a>of this series on the basics of storage we have covered off some of the fundamentals of the subject including why storage is important and made some headway into the terminology, in this post we look at some of the acronyms and initialisms.</p>
+<h2 id="raid">RAID</h2>
+<p>RAID, has evolved its meaning over time from Redundant Array of Inexpensive Disks to Redundant Array of Independent Disks, but its acceptable either way. RAID takes a few forms (known as levels) with the intention to provide virtualization of the underlying storage hardware to increase performance and protection for the data residing on a presentable logical storage device. The levels include</p>
+<ul>
+<li>RAID-0 (striping), where the data is spread across multiple disks in uniform stripes to increase performance</li>
+<li>RAID-1 (mirroring) where the same data resides on multiple disks and can be used to increase read performance and provide redundancy for disk failure</li>
+<li>RAID-2, 3 and 4 which deal with disk head synchronization and single disk parity (and we don’t hear of these so much now)</li>
+<li>RAID-5 remains popular as it provides a level of redundancy and performance through the distribution of parity across a set of disks allowing for a failure of a disk in a group</li>
+<li>RAID-6 which allows for 2 disk failures in a group by doubling up on the parity</li>
+</ul>
+<p>For the mathematically minded folk out there most of the parity calculations are done using the XOR operator on the data (&ldquo;This is an XOR Parity&rdquo; – come on, some of you love this Python sketch, no, just me then) additionally RAID-6 introduces further parity calculations which depending on the implementation approach can impact write performance considerably. Some of these levels can be combined, such as RAID 10 (a striped mirror) and RAID 0+1 (a mirrored stripe) - homework task to understand the difference - if you are interested in knowing a bit more, there are some good descriptions on the <a href="http://en.wikipedia.org/wiki/Standard_RAID_levels">Wikipedia page</a>.</p>
+<h2 id="iops">IOPS</h2>
+<p>IOPS means &lsquo;Input/Output Per Second&rsquo;, longhand it’s the number of operations per second that a device (individually or as a logical aggregate) can perform. This is one of a number of measurement metrics that can be combined to understand the relative performance of an element of a storage subsystem, again on its own it can be used unwisely to overstate, or competitively understate the performance of a storage system. See Disraeli’s <a href="https://en.wikipedia.org/wiki/Lies,_damned_lies,_and_statistics">lies, damn lies and statistics</a>.</p>
+<h2 id="ssd-or-flash">SSD (or Flash)</h2>
+<p>Solid State Disk - very high performance storage, tends to be lower capacity, likely to see convergence point in next couple of years on cost per GB with traditional disks in consumer space, which is currently high, but cost per IOP can be attractive for appropriate workloads. No moving parts, extremely rapid data access, lower capacity than traditional disks, higher cost per GB. Sweet-spot for random IO workloads.</p>
+<h2 id="interfaces">Interfaces</h2>
+<p>Interestingly one of areas that doesn’t make things easy to understand for the newcomer is the way that connectivity interfaces define the class of storage in the industry, not always accurately – in the same way that if you turn up for a party in a Ferrari, it doesn’t mean you can dance. It&rsquo;s all about making sure that you know the limitations (or excesses) and you cater for them in your design.</p>
+<h3 id="fc-and-sas">FC and SAS*</h3>
+<p>Fiber Channel and Serial Attached SCSI - these are enterprise class interfaces, supporting a wide variety of performance enhancing techniques and instrumentation, they are still associated mostly with traditional spinning disk, providing high reliability, intelligent features to enhance enterprise performance.</p>
+<h3 id="sata">SATA</h3>
+<p>Serial Advanced Technology Attachment - lower end interface, tend to be capacity centric drives, lower performance and price point. However, don’t assume that this is the wrong choice just because more expensive solutions are out there - look at your application stack and determine how data will be de-staged to the storage.</p>
+<h3 id="nl-sas">NL-SAS</h3>
+<p>Near Line - Serial Attached SCSI - bit of a mix, high-end interface giving some enterprise features with a high-capacity, lower performance drive. This allows capacity centric drives to coexist in the same storage array as higher performance devices. Sounds good, but does it always make sense? We will come back to the dynamics of charging models in a later post, where just like any business there are fixed and variable costs.</p>
+<h2 id="previously">Previously…</h2>
+<ul>
+<li><a href="/post/storage-basics-part-1-or-from-disc-to-discovery/">Storage Basics Part 1 – or From Disc to Discovery</a></li>
+<li><a href="/post/storage-basics-part-2-or-a-chip-off-the-old-block/">Storage Basics Part 2 – or A Chip Off The Old Block</a></li>
+<li><a href="/post/storage-basics-part-3-or-time-waits-for-no-wan/">Storage Basics Part 3 – or Time Waits For No WAN</a></li>
+</ul>
+<h2 id="next-time">Next Time…</h2>
+<p>The focus moves to the group of 3 letter acronyms that tell us how we are going to move data to-and-from our storage</p>
+<p>*<em>(SAS a double nested acronym no less, 5 points to anyone who can send me any IT related triple-nested-acronyms – as if this subject is not complicated enough for the beginner!)</em></p>
+<p>Don’t forget to comment, get involved and get in touch using the boxes below and reach out direct <a href="https://twitter.com/glennaugustus">@glennaugustus</a></p>
+
+
+                
+
+                
+                <hr>
+                <ul class="pager">
+                    
+                    <li class="previous">
+                        <a href="/post/storage-basics-part-3-or-time-waits-for-no-wan/" data-toggle="tooltip" data-placement="top" title="Storage Basics Part 3 - or Time Waits For No WAN">&larr;
+                            Previous Post</a>
+                    </li>
+                    
+                    
+                    <li class="next">
+                        <a href="/post/storage-basics-part-5-das-ist-gut-ja/" data-toggle="tooltip" data-placement="top" title="Storage Basics Part 5 - or DAS ist gut ja!">Next
+                            Post &rarr;</a>
+                    </li>
+                    
+                </ul>
+                
+
+                
+
+
+<div id="disqus-comment"></div>
+<div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "glennaugustus" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+
+            </div>
+
+            
+            
+            <div class="
+                col-lg-2 col-lg-offset-0
+                visible-lg-block
+                sidebar-container
+                catalog-container">
+                <div class="side-catalog">
+                    <hr class="hidden-sm hidden-xs">
+                    <h5>
+                        <a class="catalog-toggle" href="#">CATALOG</a>
+                    </h5>
+                    <ul class="catalog-body"></ul>
+                </div>
+            </div>
+            
+
+            
+            <div class="
+                col-lg-8 col-lg-offset-2
+                col-md-10 col-md-offset-1
+                sidebar-container">
+
+                
+                
+                <section>
+                    <hr class="hidden-sm hidden-xs">
+                    <h5><a href="/tags/">FEATURED TAGS</a></h5>
+                    <div class="tags">
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/ai" title="ai">
+                            ai
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/basics" title="basics">
+                            basics
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/blogging" title="blogging">
+                            blogging
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/cloud" title="cloud">
+                            cloud
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/compute-workload-abstraction" title="compute workload abstraction">
+                            compute workload abstraction
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/containers" title="containers">
+                            containers
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/content-creation" title="content creation">
+                            content creation
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/docker" title="docker">
+                            docker
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/iaas" title="iaas">
+                            iaas
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/industrial-revolution" title="industrial revolution">
+                            industrial revolution
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/industrial-webolution" title="industrial webolution">
+                            industrial webolution
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/innovation" title="innovation">
+                            innovation
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/it" title="it">
+                            it
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/it-industry" title="it industry">
+                            it industry
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/serverless" title="serverless">
+                            serverless
+                        </a>
+                        
+                        
+                        
+                        <a href="/tags/servers" title="servers">
+                            servers
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/storage" title="storage">
+                            storage
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/storage-basics" title="storage basics">
+                            storage basics
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/technology" title="technology">
+                            technology
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/virtualization" title="virtualization">
+                            virtualization
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/webolution" title="webolution">
+                            webolution
+                        </a>
+                        
+                        
+                        
+                        
+                        
+                        <a href="/tags/writing" title="writing">
+                            writing
+                        </a>
+                        
+                        
+                        
+                        
+                    </div>
+                </section>
+                
+
+                
+                
+            </div>
+        </div>
+    </div>
+</article>
+
+
+
+
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    
+                    <li>
+                        <a href="mailto:me@glennaugustus.com">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    <li>
+                        <a href="https://twitter.com/glennaugustus">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-twitter fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+                    
+                    
+                    
+                    
+
+		            
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://github.com/glennaugustus">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		            
+                    
+                    
+                    
+                    <li>
+                        <a target="_blank" href="https://www.linkedin.com/in/glennaugustus">
+                            <span class="fa-stack fa-lg">
+                                <i class="fas fa-circle fa-stack-2x"></i>
+                                <i class="fab fa-linkedin fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+		           
+                    
+                    
+                    
+                    
+                    
+                    
+            
+            
+            
+           
+            <li>
+                <a target="_blank" href="https://signal.link/call/#key=dxst-zdqq-sbqc-gqxn-kntb-dpdc-nbkg-mpxr">
+                    <span class="fa-stack fa-lg">
+                        <i class="fas fa-circle fa-stack-2x"></i>
+                        <i class="fa fa-signal fa-stack-1x fa-inverse"></i>
+                    </span>
+                </a>
+            </li>
+           
+           
+               <li>
+                   <a target="_blank" href="https://telegram.me/reachouttoglenn">
+                       <span class="fa-stack fa-lg">
+                           <i class="fas fa-circle fa-stack-2x"></i>
+                           <i class="fab fa-telegram fa-stack-1x fa-inverse"></i>
+                       </span>
+                   </a>
+               </li>
+               
+           
+                   <li>
+                       <a href='' rel="alternate" type="application/rss+xml" title="glennaugustus.com" >
+                           <span class="fa-stack fa-lg">
+                               <i class="fas fa-circle fa-stack-2x"></i>
+                               <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                           </span>
+                       </a>
+                   </li>
+            
+             </ul>
+                    <div>
+                        <p class="copyright text-muted">
+                         &copy; 2025 glennaugustus.com.</p>
+                        <p class="copyright text-muted">
+                            <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+                        </p>
+                    </div>
+                    
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+
+<script>
+    function loadAsync(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+
+
+
+
+
+<script>
+    
+    if($('#tag_cloud').length !== 0){
+        loadAsync("/js/jquery.tagcloud.js",function(){
+            $.fn.tagcloud.defaults = {
+                
+                color: {start: '#bbbbee', end: '#0085a1'},
+            };
+            $('#tag_cloud a').tagcloud();
+        })
+    }
+</script>
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+    function generateCatalog(selector) {
+
+        
+        
+        
+        
+            _containerSelector = 'div.post-container'
+        
+
+        
+        var P = $(_containerSelector), a, n, t, l, i, c;
+        a = P.find('h1,h2,h3,h4,h5,h6');
+
+        
+        $(selector).html('')
+
+        
+        a.each(function () {
+            n = $(this).prop('tagName').toLowerCase();
+            i = "#" + $(this).prop('id');
+            t = $(this).text();
+            c = $('<a href="' + i + '" rel="nofollow" title="' + t + '">' + t + '</a>');
+            l = $('<li class="' + n + '_nav"></li>').append(c);
+            $(selector).append(l);
+        });
+        return true;
+    }
+
+    generateCatalog(".catalog-body");
+
+    
+    $(".catalog-toggle").click((function (e) {
+        e.preventDefault();
+        $('.side-catalog').toggleClass("fold")
+    }))
+
+    
+
+
+    loadAsync("\/js\/jquery.nav.js", function () {
+        $('.catalog-body').onePageNav({
+            currentClass: "active",
+            changeHash: !1,
+            easing: "swing",
+            filter: "",
+            scrollSpeed: 700,
+            scrollOffset: 0,
+            scrollThreshold: .2,
+            begin: null,
+            end: null,
+            scrollChange: null,
+            padding: 80
+        });
+    });
+</script>
+
+
+
+
+
+
+</body>
+</html>
